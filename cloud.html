@@ -35,12 +35,11 @@
         
         .photo {
             position: absolute;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transition: all 0.5s ease;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
             overflow: hidden;
-            cursor: pointer;
-            border: 12px solid rgba(255, 255, 255, 0.865);
-            transform-origin: center center;
+            border: 8px groove rgba(255, 255, 255);
+            transform-origin: center center; 
+
         }
         
         .photo img {
@@ -71,20 +70,7 @@
             z-index: 100;
         }
         
-        .control-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            font-size: 1rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
-        }
-        
-        .control-btn:hover {
-            background: var(--secondary);
-        }
+   
     </style>
 </head>
 <body>
@@ -96,10 +82,7 @@
         0 Fotos
     </div>
     
-    <div class="controls">
-        <button class="control-btn" id="addBtn">+</button>
-        <button class="control-btn" id="clearBtn">×</button>
-    </div>
+    
     
     <script>
         // DOM Elements
