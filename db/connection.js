@@ -17,13 +17,6 @@ const pool = mysql.createPool({
 async function initializeDatabase() {
   try {
     const connection = await pool.getConnection();
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS photos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        image_url VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
     connection.release();
     console.log('Database initialized');
   } catch (err) {

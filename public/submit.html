@@ -66,7 +66,7 @@
         .camera-container {
             position: relative;
             width: 100%;
-            padding-top: 125%; /* 4:5 aspect ratio */
+            padding-top: 125%;
             overflow: hidden;
             background: #000;
         }
@@ -293,7 +293,7 @@
     <div class="photo-app">
         <div class="app-header">
             <h1>Lets B real!</h1>
-            <p>whoop whoop testtxt für mehr Infos</p>
+            <p>Capture your moment to be part of the experience</p>
         </div>
         
         <div class="camera-container">
@@ -323,19 +323,18 @@
     
     <div class="loading" id="loading">
         <div class="spinner"></div>
-        <p>Wir laden dein Bild hoch...</p>
+        <p>Uploading your photo...</p>
     </div>
     
     <div class="confirmation" id="confirmation">
         <div class="confirmation-box">
-            <h2>Danke dir!</h2>
-            <p>Warte etwas ab dein Bild wird teil des Gottesdienstes!</p>
-            <button class="btn btn-primary" id="closeConfirmation">Schließen</button>
+            <h2>Thank you!</h2>
+            <p>Your photo will now appear in the collective experience.</p>
+            <button class="btn btn-primary" id="closeConfirmation">Close</button>
         </div>
     </div>
     
     <script>
-        // DOM Elements
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const captureBtn = document.getElementById('captureBtn');
@@ -350,11 +349,9 @@
         let photoData = null;
         let stream = null;
         
-        // Access camera
         async function initCamera() {
             try {
                 if (stream) {
-                    // Stop any existing stream first
                     stream.getTracks().forEach(track => track.stop());
                 }
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -372,7 +369,6 @@
             }
         }
         
-        // Stop camera
         function stopCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -381,75 +377,72 @@
             }
         }
         
-        // Capture photo
         captureBtn.addEventListener('click', () => {
-            // Trigger flash effect
             flash.classList.add('active');
             setTimeout(() => flash.classList.remove('active'), 500);
             
-            // Capture image
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
-            
-            // Draw image
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Convert to base64
             photoData = canvas.toDataURL('image/jpeg');
             
-            // Switch to preview mode
             video.style.display = 'none';
             canvas.style.display = 'block';
-            captureBtn.classList.add('hidden'); // Hide the capture button
+            captureBtn.classList.add('hidden');
             previewActions.classList.add('show');
             
-            // Stop the camera stream to save resources
             stopCamera();
         });
         
-        // Retake photo
         retakeBtn.addEventListener('click', () => {
-            // Restart the camera
             initCamera().then(() => {
                 video.style.display = 'block';
                 canvas.style.display = 'none';
-                captureBtn.classList.remove('hidden'); // Show the capture button again
+                captureBtn.classList.remove('hidden');
                 previewActions.classList.remove('show');
             });
         });
         
-        // Submit photo
-        submitBtn.addEventListener('click', () => {
+        submitBtn.addEventListener('click', async () => {
             if (!photoData) return;
             
             loading.style.display = 'flex';
-            setTimeout(() => {
-                loading.style.opacity = '1';
-            }, 10);
+            setTimeout(() => loading.style.opacity = '1', 10);
             
-            // Simulate upload (replace with actual API call)
-            setTimeout(() => {
+            try {
+                const blob = await fetch(photoData).then(res => res.blob());
+                const formData = new FormData();
+                formData.append('photo', blob, 'photo.jpg');
+                
+                const response = await fetch('/api/photos', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Upload failed');
+                
                 loading.style.opacity = '0';
                 setTimeout(() => {
                     loading.style.display = 'none';
-                    
-                    // Show confirmation
                     confirmation.style.display = 'flex';
-                    setTimeout(() => {
-                        confirmation.classList.add('show');
-                    }, 10);
+                    setTimeout(() => confirmation.classList.add('show'), 10);
                 }, 300);
-            }, 2000);
+            } catch (err) {
+                console.error('Upload error:', err);
+                loading.style.opacity = '0';
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                    alert('Upload failed. Please try again.');
+                }, 300);
+            }
         });
         
-        // Close confirmation
         closeConfirmation.addEventListener('click', () => {
             confirmation.classList.remove('show');
             setTimeout(() => {
                 confirmation.style.display = 'none';
-                
-                // Reset camera after submission
                 initCamera().then(() => {
                     video.style.display = 'block';
                     canvas.style.display = 'none';
@@ -459,10 +452,7 @@
             }, 300);
         });
         
-        // Initialize camera when page loads
         window.addEventListener('DOMContentLoaded', initCamera);
-        
-        // Clean up camera when page unloads
         window.addEventListener('beforeunload', () => {
             stopCamera();
         });

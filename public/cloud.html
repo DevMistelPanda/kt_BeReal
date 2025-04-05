@@ -28,27 +28,40 @@
         
         .photo-cloud {
             position: relative;
-            width: 100%;
+            width: 100vw;
             height: 100vh;
             overflow: hidden;
+            background: #000;
         }
         
         .photo {
             position: absolute;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             overflow: hidden;
-            border: 8px groove rgba(255, 255, 255);
-            transform-origin: center center; 
-
+            border: 3px solid rgba(255,255,255,0.8);
+            transform-origin: center center;
+            transition: all 0.3s ease;
+            z-index: 1;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
         }
         
         .photo img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s ease;
+            display: block;
         }
         
+        .photo:hover {
+            transform: scale(1.1) rotate(5deg);
+            z-index: 100;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
         
         .count-display {
             position: fixed;
@@ -57,8 +70,9 @@
             background: rgba(0,0,0,0.7);
             color: white;
             padding: 10px 15px;
+            border-radius: 20px;
             font-size: 0.9rem;
-            z-index: 100;
+            z-index: 1000;
         }
         
         .controls {
@@ -67,22 +81,77 @@
             right: 20px;
             display: flex;
             gap: 10px;
-            z-index: 100;
+            z-index: 1000;
         }
         
-   
+        .control-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .control-btn:hover {
+            background: var(--secondary);
+            transform: scale(1.1);
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .new-photo-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 15px;
+            height: 15px;
+            background: var(--error);
+            border-radius: 50%;
+            z-index: 101;
+        }
     </style>
 </head>
 <body>
-    <div class="photo-cloud" id="photoCloud">
-        <!-- Photos will be inserted here by JavaScript -->
+    <div class="photo-cloud" id="photoCloud"></div>
+    <div class="count-display" id="countDisplay">0 Photos</div>
+    <div class="controls">
+        <button class="control-btn" id="addBtn">+</button>
+        <button class="control-btn" id="clearBtn">×</button>
     </div>
-    
-    <div class="count-display" id="countDisplay">
-        0 Fotos
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Loading photos...</p>
     </div>
-    
-    
     
     <script>
         // DOM Elements
@@ -90,222 +159,292 @@
         const countDisplay = document.getElementById('countDisplay');
         const addBtn = document.getElementById('addBtn');
         const clearBtn = document.getElementById('clearBtn');
-        
+        const loading = document.getElementById('loading');
+
         // Configuration
         const MAX_PHOTOS = 500;
         const INITIAL_SIZE = 180;
         const MIN_SIZE = 120;
-        const SCALING_THRESHOLD = 40;
-        const ADD_INTERVAL = 100;
-        const GAP_SIZE = 10; // Increased gap between photos
-        const GRID_RESOLUTION = 150;
-        
+        const GAP_SIZE = 20;
+        const LOAD_DELAY = 300; // ms between photo loads
+        const POLL_INTERVAL = 10000; // 10 seconds
+        const NEW_PHOTO_DURATION = 5000; // 5 seconds highlight
+
         // State
         let currentPhotos = [];
         let isSimulating = false;
         let simulationInterval = null;
-        let currentSize = INITIAL_SIZE;
-        let scaleFactor = 1;
-        let densityGrid = [];
-        
+        let checkInterval = null;
+        let lastPhotoCount = 0;
+
         // Initialize
         initPhotoCloud();
-        
-        function initPhotoCloud() {
-            initializeDensityGrid();
-            startSimulation();
+
+        async function initPhotoCloud() {
+            showLoading();
+            await loadInitialPhotos();
+            hideLoading();
             
-            addBtn.addEventListener('click', () => {
-                if (!isSimulating) startSimulation();
-            });
+            // Start periodic checking
+            checkInterval = setInterval(checkForNewPhotos, POLL_INTERVAL);
             
-            clearBtn.addEventListener('click', () => {
-                stopSimulation();
-                currentPhotos = [];
-                photoCloud.innerHTML = '';
-                countDisplay.textContent = '0 Fotos';
-                currentSize = INITIAL_SIZE;
-                scaleFactor = 1;
-                initializeDensityGrid();
-            });
+            addBtn.addEventListener('click', startSimulation);
+            clearBtn.addEventListener('click', clearPhotos);
         }
-        
-        function initializeDensityGrid() {
-            densityGrid = Array(GRID_RESOLUTION).fill().map(() => 
-                Array(GRID_RESOLUTION).fill(0));
+
+        function showLoading() {
+            loading.style.display = 'flex';
         }
-        
-        function updateDensityGrid(x, y, size, add = true) {
-            const gridSizeX = photoCloud.clientWidth / GRID_RESOLUTION;
-            const gridSizeY = photoCloud.clientHeight / GRID_RESOLUTION;
-            
-            // Include gap in calculations
-            const paddedSize = size + GAP_SIZE;
-            
-            const startX = Math.floor((x - GAP_SIZE/2) / gridSizeX);
-            const startY = Math.floor((y - GAP_SIZE/2) / gridSizeY);
-            const endX = Math.floor((x + paddedSize) / gridSizeX);
-            const endY = Math.floor((y + paddedSize) / gridSizeY);
-            
-            for (let gy = startY; gy <= endY; gy++) {
-                for (let gx = startX; gx <= endX; gx++) {
-                    if (gx >= 0 && gx < GRID_RESOLUTION && gy >= 0 && gy < GRID_RESOLUTION) {
-                        densityGrid[gy][gx] += add ? 1 : -1;
-                    }
-                }
-            }
+
+        function hideLoading() {
+            loading.style.display = 'none';
         }
-        
-        function findEmptyArea(size) {
-            const containerWidth = photoCloud.clientWidth;
-            const containerHeight = photoCloud.clientHeight;
-            const gridSizeX = containerWidth / GRID_RESOLUTION;
-            const gridSizeY = containerHeight / GRID_RESOLUTION;
-            
-            // Find the least dense grid cell
-            let minDensity = Infinity;
-            let bestCells = [];
-            
-            for (let gy = 0; gy < GRID_RESOLUTION; gy++) {
-                for (let gx = 0; gx < GRID_RESOLUTION; gx++) {
-                    if (densityGrid[gy][gx] < minDensity) {
-                        minDensity = densityGrid[gy][gx];
-                        bestCells = [{gx, gy}];
-                    } else if (densityGrid[gy][gx] === minDensity) {
-                        bestCells.push({gx, gy});
-                    }
-                }
-            }
-            
-            // Try to place in the least dense areas first
-            for (let i = 0; i < bestCells.length; i++) {
-                const {gx, gy} = bestCells[i];
+
+        async function loadInitialPhotos() {
+            try {
+                const response = await fetch('/api/photos?t=' + Date.now());
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
-                // Calculate available area with gap
-                const paddedSize = size + GAP_SIZE;
-                const minX = Math.max(0, gx * gridSizeX + GAP_SIZE/2);
-                const minY = Math.max(0, gy * gridSizeY + GAP_SIZE/2);
-                const maxX = Math.min(containerWidth - size, (gx + 1) * gridSizeX - GAP_SIZE/2 - size);
-                const maxY = Math.min(containerHeight - size, (gy + 1) * gridSizeY - GAP_SIZE/2 - size);
-                
-                if (maxX > minX && maxY > minY) {
-                    return {
-                        x: minX + Math.random() * (maxX - minX),
-                        y: minY + Math.random() * (maxY - minY)
-                    };
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    throw new Error('Expected array but got:', typeof data);
                 }
+                
+                currentPhotos = data;
+                lastPhotoCount = data.length;
+                countDisplay.textContent = `${currentPhotos.length} Photos`;
+                
+                // Load photos one by one with delay
+                loadPhotosSequentially();
+                
+            } catch (err) {
+                console.error('Photo load failed:', err);
+                countDisplay.textContent = 'Error loading photos';
             }
+        }
+
+        function loadPhotosSequentially() {
+            photoCloud.innerHTML = '';
             
-            // Fallback to random position with gaps
-            return {
-                x: GAP_SIZE/2 + Math.random() * (containerWidth - size - GAP_SIZE),
-                y: GAP_SIZE/2 + Math.random() * (containerHeight - size - GAP_SIZE)
+            currentPhotos.forEach((photo, index) => {
+                setTimeout(() => {
+                    const size = calculateDynamicSize(index);
+                    const photoElement = createPhotoElement(photo, size);
+                    positionPhoto(photoElement, size);
+                    photoCloud.appendChild(photoElement);
+                    
+                    // Highlight if new photo
+                    if (index >= lastPhotoCount) {
+                        highlightNewPhoto(photoElement);
+                    }
+                }, index * LOAD_DELAY);
+            });
+        }
+
+        function highlightNewPhoto(element) {
+            const indicator = document.createElement('div');
+            indicator.className = 'new-photo-indicator';
+            element.appendChild(indicator);
+            
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 500);
+            }, NEW_PHOTO_DURATION);
+        }
+
+        function createPhotoElement(photo, size) {
+            const photoElement = document.createElement('div');
+            photoElement.className = 'photo';
+            photoElement.style.width = `${size}px`;
+            photoElement.style.height = `${size}px`;
+            
+            const img = new Image();
+            img.src = photo.image_url + '?t=' + Date.now(); // Cache busting
+            img.alt = 'User photo';
+            img.loading = 'lazy';
+            
+            img.onerror = () => {
+                console.error('Failed to load:', photo.image_url);
+                photoElement.remove();
             };
+            
+            photoElement.appendChild(img);
+            return photoElement;
         }
-        
+
+        function calculateDynamicSize(index) {
+            if (currentPhotos.length <= 10) return INITIAL_SIZE;
+            const scaleFactor = Math.max(
+                MIN_SIZE / INITIAL_SIZE,
+                1 - (index / currentPhotos.length) * 0.5
+            );
+            return INITIAL_SIZE * scaleFactor;
+        }
+
+        function positionPhoto(element, size) {
+            let placed = false;
+            let attempts = 0;
+            const maxAttempts = 100;
+            
+            while (!placed && attempts < maxAttempts) {
+                const x = Math.random() * (photoCloud.clientWidth - size);
+                const y = Math.random() * (photoCloud.clientHeight - size);
+                
+                if (!isOverlapping(x, y, size)) {
+                    element.style.left = `${x}px`;
+                    element.style.top = `${y}px`;
+                    element.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
+                    placed = true;
+                }
+                attempts++;
+            }
+            
+            if (!placed) {
+                console.warn('Could not position photo after', maxAttempts, 'attempts');
+                element.remove();
+            }
+        }
+
+        function isOverlapping(x, y, size) {
+            const padding = GAP_SIZE;
+            const elements = document.querySelectorAll('.photo');
+            
+            for (const el of elements) {
+                const rect = el.getBoundingClientRect();
+                const photoRect = {
+                    left: x - padding,
+                    top: y - padding,
+                    right: x + size + padding,
+                    bottom: y + size + padding
+                };
+                
+                if (
+                    photoRect.left < rect.right &&
+                    photoRect.right > rect.left &&
+                    photoRect.top < rect.bottom &&
+                    photoRect.bottom > rect.top
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        async function checkForNewPhotos() {
+            try {
+                const response = await fetch('/api/photos/count?t=' + Date.now());
+                if (!response.ok) return;
+                
+                const result = await response.json();
+                const newCount = result.count;
+                
+                if (newCount > lastPhotoCount) {
+                    console.log(`Found ${newCount - lastPhotoCount} new photos`);
+                    await loadNewPhotos();
+                    lastPhotoCount = newCount;
+                }
+            } catch (err) {
+                console.error('Error checking for new photos:', err);
+            }
+        }
+
+        async function loadNewPhotos() {
+            try {
+                const response = await fetch('/api/photos/new?since=' + lastPhotoCount);
+                if (!response.ok) return;
+                
+                const newPhotos = await response.json();
+                currentPhotos = currentPhotos.concat(newPhotos);
+                countDisplay.textContent = `${currentPhotos.length} Photos`;
+                
+                // Load only the new photos with delay
+                newPhotos.forEach((photo, index) => {
+                    setTimeout(() => {
+                        const size = calculateDynamicSize(currentPhotos.length - newPhotos.length + index);
+                        const photoElement = createPhotoElement(photo, size);
+                        positionPhoto(photoElement, size);
+                        photoCloud.appendChild(photoElement);
+                        highlightNewPhoto(photoElement);
+                    }, index * LOAD_DELAY);
+                });
+                
+            } catch (err) {
+                console.error('Error loading new photos:', err);
+            }
+        }
+
         function startSimulation() {
-            if (isSimulating) return;
+            if (isSimulating || currentPhotos.length === 0) return;
             isSimulating = true;
             
             if (currentPhotos.length >= MAX_PHOTOS) {
-                currentPhotos = [];
-                photoCloud.innerHTML = '';
-                countDisplay.textContent = '0 Fotos';
-                currentSize = INITIAL_SIZE;
-                scaleFactor = 1;
-                initializeDensityGrid();
+                clearPhotos();
+                return;
             }
             
             simulationInterval = setInterval(() => {
                 if (currentPhotos.length < MAX_PHOTOS) {
-                    addNewPhoto(createRandomPhoto());
+                    const randomPhoto = currentPhotos[Math.floor(Math.random() * currentPhotos.length)];
+                    const size = calculateDynamicSize(currentPhotos.length);
+                    const photoElement = createPhotoElement(randomPhoto, size);
+                    positionPhoto(photoElement, size);
+                    photoCloud.appendChild(photoElement);
                 } else {
                     stopSimulation();
                 }
             }, ADD_INTERVAL);
         }
-        
+
         function stopSimulation() {
             clearInterval(simulationInterval);
             isSimulating = false;
         }
-        
-        function addNewPhoto(photo) {
-            currentPhotos.push(photo);
-            
-            // Calculate scaling after threshold
-            if (currentPhotos.length > SCALING_THRESHOLD) {
-                scaleFactor = Math.max(
-                    MIN_SIZE / INITIAL_SIZE,
-                    1 - (currentPhotos.length - SCALING_THRESHOLD) / (MAX_PHOTOS - SCALING_THRESHOLD) * (1 - MIN_SIZE/INITIAL_SIZE)
-                );
-                currentSize = INITIAL_SIZE * scaleFactor;
+
+        async function clearPhotos() {
+            try {
+                const response = await fetch('/api/photos', { 
+                    method: 'DELETE' 
+                });
                 
-                // Scale all existing photos
-                // document.querySelectorAll('.photo').forEach(photoEl => {
-                //     const originalWidth = parseInt(photoEl.dataset.originalWidth || INITIAL_SIZE);
-                //     const newWidth = originalWidth * scaleFactor;
-                //     photoEl.style.width = `${newWidth}px`;
-                //     photoEl.style.height = `${newWidth}px`;
-                    
-                //     // Update position after scaling
-                //     const left = parseInt(photoEl.style.left);
-                //     const top = parseInt(photoEl.style.top);
-                //     updateDensityGrid(left, top, originalWidth, false);
-                //     updateDensityGrid(left, top, newWidth, true);
-                // });
+                if (!response.ok) throw new Error('Failed to clear photos');
+                
+                currentPhotos = [];
+                lastPhotoCount = 0;
+                photoCloud.innerHTML = '';
+                countDisplay.textContent = '0 Photos';
+                
+            } catch (err) {
+                console.error('Clear photos failed:', err);
+                alert('Failed to clear photos. Please try again.');
             }
-            
-            renderPhoto(photo);
-            countDisplay.textContent = `${currentPhotos.length} Fotos`;
         }
-        
-        function renderPhoto(photo) {
-            const photoElement = document.createElement('div');
-            photoElement.className = 'photo';
-            photoElement.style.width = `${currentSize}px`;
-            photoElement.style.height = `${currentSize}px`;
-            photoElement.dataset.originalWidth = currentSize;
-            
-            const img = document.createElement('img');
-            img.src = photo.imageUrl;
-            img.alt = 'User photo';
-            img.loading = 'lazy';
-            
-            photoElement.appendChild(img);
-            photoCloud.appendChild(photoElement);
-            
-            // Position photo with gaps
-            const position = findEmptyArea(currentSize);
-            photoElement.style.left = `${position.x}px`;
-            photoElement.style.top = `${position.y}px`;
-            
-            // Update density grid with gap
-            updateDensityGrid(position.x, position.y, currentSize);
-            
-            // Random rotation for organic feel
-            photoElement.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
-        }
-        
-        function createRandomPhoto() {
-            return {
-                id: Date.now() + Math.random(),
-                imageUrl: `https://picsum.photos/500/500?random=${Date.now() + Math.random()}`,
-                timestamp: new Date().toISOString()
-            };
-        }
-        
-        // Handle window resize
+
         window.addEventListener('resize', () => {
-            initializeDensityGrid();
-            document.querySelectorAll('.photo').forEach(photo => {
-                const size = parseInt(photo.style.width);
-                const position = findEmptyArea(size);
-                photo.style.left = `${position.x}px`;
-                photo.style.top = `${position.y}px`;
-                updateDensityGrid(position.x, position.y, size);
-            });
+            if (currentPhotos.length > 0) {
+                renderAllPhotos();
+            }
         });
+
+        function renderAllPhotos() {
+            photoCloud.innerHTML = '';
+            currentPhotos.forEach((photo, index) => {
+                const size = calculateDynamicSize(index);
+                const photoElement = createPhotoElement(photo, size);
+                positionPhoto(photoElement, size);
+                photoCloud.appendChild(photoElement);
+            });
+        }
+
+        // Clean up intervals when page unloads
+        window.addEventListener('beforeunload', () => {
+            clearInterval(checkInterval);
+            clearInterval(simulationInterval);
+        });
+    
+        window.onload = function(){
+            loadNewPhotos();
+            setInterval(loadNewPhotos, 3000);
+        };
     </script>
 </body>
 </html>
