@@ -24,4 +24,4 @@ async function initializeDatabase() {
   }
 }
 
-module.exports = { pool, initializeDatabase };
+module.exports = { pool, initializeDatabase }; 
