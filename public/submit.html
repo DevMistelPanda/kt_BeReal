@@ -32,61 +32,93 @@
             color: var(--dark);
             padding: 20px;
         }
- /* Style für den Splashscreen */
-#splashscreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-family: Arial, sans-serif;
-    z-index: 1000;
-    font-size: 30px;
-    font-weight: bold;
-}
-
-#content {
-    padding: 15px;
-    text-align: center;
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 15px auto;
-}
-
-/* Style für den Button */
-#acceptBtn
-
-{
-    padding: 10px 20px;
-    background-color: #00ff08;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-#denyBtn{
-    padding: 10px 20px;
-    background-color: #ff0000;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-
-
-}
-
-
-
-#acceptBtn:hover 
-{
-    background-color: #45a049;
-}
+        
+        .consent-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .consent-dialog.show {
+            opacity: 1;
+        }
+        
+        .consent-box {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            transition: all 0.3s ease 0.1s;
+        }
+        
+        .consent-dialog.show .consent-box {
+            transform: scale(1);
+        }
+        
+        .consent-box h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+        
+        .consent-box p {
+            margin-bottom: 25px;
+            line-height: 1.5;
+            font-size: 1rem;
+        }
+        
+        .consent-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .consent-btn {
+            border: none;
+            border-radius: 50px;
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .consent-accept {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .consent-accept:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+        
+        .consent-deny {
+            background-color: white;
+            color: var(--error);
+            border: 2px solid var(--error);
+        }
+        
+        .consent-deny:hover {
+            background-color: #fef0f5;
+        }
+        
         .photo-app {
             background-color: white;
             border-radius: 20px;
@@ -95,6 +127,7 @@
             max-width: 500px;
             overflow: hidden;
             transition: all 0.3s ease;
+            display: none;
         }
         
         .app-header {
@@ -344,14 +377,19 @@
     </style>
 </head>
 <body>
-    <!-- Splashscreen -->
-    <div id="splashscreen">
-        <p>Hiermit erklärst du dich einverstanden, dass dein Bild im Laufe der Veranstaltung zu sehen ist.</p>
-        <button id="acceptBtn">Annehmen</button>
-        <a  href="https://google.com"> <button id="denyBtn">Ablehen</button></a> 
+    <!-- Consent Dialog -->
+    <div class="consent-dialog" id="consentDialog">
+        <div class="consent-box">
+            <h2>Photo Consent</h2>
+            <p>Hiermit erklärst du dich einverstanden, dass dein Bild im Laufe der Veranstaltung gezeigt wird. Dein Foto wird während des Gottesdienstes auf der Leinwand erscheinen.</p>
+            <div class="consent-buttons">
+                <button class="consent-btn consent-deny" id="denyBtn">Ablehnen</button>
+                <button class="consent-btn consent-accept" id="acceptBtn">Annehmen</button>
+            </div>
+        </div>
     </div>
 
-    <div class="photo-app">
+    <div class="photo-app" id="photoApp">
         <div class="app-header">
             <h1>Lets B real!</h1>
             <p>das Bild wird im Laufe des Gottesdienstes gezeigt</p>
@@ -407,21 +445,33 @@
         const confirmation = document.getElementById('confirmation');
         const closeConfirmation = document.getElementById('closeConfirmation');
         const acceptBtn = document.getElementById('acceptBtn');
-        const splashscreen = document.getElementById('splashscreen');
-        const content = document.getElementById('content');
+        const denyBtn = document.getElementById('denyBtn');
+        const consentDialog = document.getElementById('consentDialog');
+        const photoApp = document.getElementById('photoApp');
 
         let photoData = null;
         let stream = null;
 
-// Füge einen EventListener für den Button hinzu
-acceptBtn.addEventListener('click', function() {
-    // Verstecke den Splashscreen und zeige den Inhalt
-    splashscreen.style.display = 'none';
-    content.style.display = 'block';
-}
-)
+        // Show consent dialog on load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                consentDialog.classList.add('show');
+            }, 100);
+        });
 
-       
+        // Handle accept button
+        acceptBtn.addEventListener('click', function() {
+            consentDialog.classList.remove('show');
+            setTimeout(() => {
+                photoApp.style.display = 'block';
+                initCamera();
+            }, 300);
+        });
+
+        // Handle deny button
+        denyBtn.addEventListener('click', function() {
+            window.location.href = 'https://google.com';
+        });
        
         // Access camera
         async function initCamera() {
@@ -527,7 +577,6 @@ acceptBtn.addEventListener('click', function() {
             }, 300);
         });
         
-        window.addEventListener('DOMContentLoaded', initCamera);
         window.addEventListener('beforeunload', () => {
             stopCamera();
         });
