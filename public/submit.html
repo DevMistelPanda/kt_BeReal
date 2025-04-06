@@ -119,12 +119,6 @@
             background-color: #fef0f5;
         }
         
-        .deny-note {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 5px;
-        }
-        
         .photo-app {
             background-color: white;
             border-radius: 20px;
@@ -136,7 +130,6 @@
             display: none;
         }
         
-        /* Rest of your existing styles remain the same */
         .app-header {
             background: linear-gradient(to right, var(--primary), var(--secondary));
             color: white;
@@ -391,10 +384,7 @@
             <p>Hiermit erklärst du dich einverstanden, dass dein Bild im Laufe der Veranstaltung gezeigt wird und temporär gespeichert wird. Dein Foto wird während des Gottesdienstes auf der Leinwand erscheinen. <br>
             <a href="agb.html">AGB & Datenschutz</a></p>
             <div class="consent-buttons">
-                <div>
-                    <button class="consent-btn consent-deny" id="denyBtn">Ablehnen</button>
-                    <div class="deny-note">schließt diese Seite</div>
-                </div>
+                <button class="consent-btn consent-deny" id="denyBtn">Ablehnen</button>
                 <button class="consent-btn consent-accept" id="acceptBtn">Annehmen</button>
             </div>
         </div>
