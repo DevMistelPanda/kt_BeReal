@@ -198,13 +198,8 @@
             });
         }
     
-        function calculateDynamicSize(index) {
-            if (currentPhotos.length <= 10) return INITIAL_SIZE;
-            const scaleFactor = Math.max(
-                MIN_SIZE / INITIAL_SIZE,
-                1 - (index / currentPhotos.length) * 0.5
-            );
-            return INITIAL_SIZE * scaleFactor;
+        function calculateDynamicSize() {
+            return Math.floor(Math.random() * (INITIAL_SIZE - MIN_SIZE + 1)) + MIN_SIZE;
         }
     
         function createPhotoElement(photo, size) {
