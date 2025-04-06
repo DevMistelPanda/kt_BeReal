@@ -143,10 +143,6 @@
 </head>
 <body>
     <div class="photo-cloud" id="photoCloud"></div>
-    <!-- <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <p>Loading photos...</p>
-    </div> -->
     
     <script>
         const photoCloud = document.getElementById('photoCloud');
@@ -154,10 +150,10 @@
         // Config
         const MAX_PHOTOS = 500;
         const INITIAL_SIZE = 180;
-        const MIN_SIZE = 120;
+        const MIN_SIZE = 160;
         const GAP_SIZE = 20;
-        const LOAD_DELAY = 200; // ms between photos
-        const POLL_INTERVAL = 5000; // check every 5 seconds
+        const LOAD_DELAY = 400; // ms between photos
+        const POLL_INTERVAL = 2000; // check every 5 seconds
     
         let currentPhotos = [];
         let lastPhotoCount = 0;
