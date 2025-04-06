@@ -6,13 +6,14 @@
     <title>Time to Be Real - LUX Kirchentag</title>
     <style>
         :root {
-            --primary: #4361ee;
-            --secondary: #3f37c9;
-            --accent: #4895ef;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --success: #4cc9f0;
-            --error: #f72585;
+            --primary: #000000;
+            --secondary: #333333;
+            --accent: #FF4F4F;
+            --light: #f5f5f5;
+            --dark: #212121;
+            --success: #4CAF50;
+            --error: #FF4F4F;
+            --beige: #333333;
         }
         
         * {
@@ -22,8 +23,8 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: var(--beige);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -80,6 +81,11 @@
             font-size: 1rem;
         }
         
+        .consent-box a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
         .consent-buttons {
             display: flex;
             justify-content: center;
@@ -101,7 +107,7 @@
         .consent-accept {
             background-color: var(--primary);
             color: white;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         
         .consent-accept:hover {
@@ -131,7 +137,7 @@
         }
         
         .app-header {
-            background: linear-gradient(to right, var(--primary), var(--secondary));
+            background: var(--primary);
             color: white;
             padding: 25px;
             text-align: center;
@@ -197,7 +203,7 @@
             position: absolute;
             width: 80%;
             height: 80%;
-            background-color: var(--error);
+            background-color: var(--accent);
             border-radius: 50%;
             top: 50%;
             left: 50%;
@@ -206,7 +212,7 @@
         }
         
         .btn-capture:hover::before {
-            background-color: #ff3d8b;
+            background-color: #ff6b6b;
         }
         
         .btn-capture.hidden {
@@ -244,7 +250,7 @@
         .btn-primary {
             background-color: var(--primary);
             color: white;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         
         .btn-primary:hover {
@@ -314,7 +320,7 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 5px solid rgba(67, 97, 238, 0.2);
+            border: 5px solid rgba(0, 0, 0, 0.1);
             border-radius: 50%;
             border-top-color: var(--primary);
             animation: spin 1s linear infinite;
@@ -380,8 +386,8 @@
     <!-- Consent Dialog -->
     <div class="consent-dialog" id="consentDialog">
         <div class="consent-box">
-            <h2>Photo Consent</h2>
-            <p>Hiermit erklärst du dich einverstanden, dass dein Bild im Laufe der Veranstaltung gezeigt wird und temporär gespeichert wird. Dein Foto wird während des Gottesdienstes auf der Leinwand erscheinen. <br>
+            <h2>Photo Consent.</h2>
+            <p>Hiermit erklärst du dich einverstanden, dass dein Bild im Laufe der Veranstaltung gezeigt und temporär gespeichert wird. Dein Foto wird während des Gottesdienstes auf der Leinwand erscheinen. <br>
             <a href="agb.html">AGB & Datenschutz</a></p>
             <div class="consent-buttons">
                 <button class="consent-btn consent-deny" id="denyBtn">Ablehnen</button>
@@ -392,8 +398,8 @@
 
     <div class="photo-app" id="photoApp">
         <div class="app-header">
-            <h1>Lets B real!</h1>
-            <p>das Bild wird im Laufe des Gottesdienstes gezeigt</p>
+            <h1>BeReal.</h1>
+            <p>Dein Bild wird im Laufe des Gottesdienstes gezeigt.</p>
         </div>
         
         <div class="camera-container">
