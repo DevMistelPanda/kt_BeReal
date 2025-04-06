@@ -462,7 +462,7 @@
 
         // Handle accept button
         acceptBtn.addEventListener('click', function() {
-            consentDialog.classList.remove('show');
+            consentDialog.style.display = 'none';
             setTimeout(() => {
                 photoApp.style.display = 'block';
                 initCamera();
