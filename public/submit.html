@@ -32,7 +32,61 @@
             color: var(--dark);
             padding: 20px;
         }
-        
+ /* Style für den Splashscreen */
+#splashscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    z-index: 1000;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+#content {
+    padding: 15px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 15px auto;
+}
+
+/* Style für den Button */
+#acceptBtn
+
+{
+    padding: 10px 20px;
+    background-color: #00ff08;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#denyBtn{
+    padding: 10px 20px;
+    background-color: #ff0000;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+
+
+}
+
+
+
+#acceptBtn:hover 
+{
+    background-color: #45a049;
+}
         .photo-app {
             background-color: white;
             border-radius: 20px;
@@ -290,10 +344,17 @@
     </style>
 </head>
 <body>
+    <!-- Splashscreen -->
+    <div id="splashscreen">
+        <p>Hiermit erklärst du dich einverstanden, dass dein Bild im Laufe der Veranstaltung zu sehen ist.</p>
+        <button id="acceptBtn">Annehmen</button>
+        <a  href="https://google.com"> <button id="denyBtn">Ablehen</button></a> 
+    </div>
+
     <div class="photo-app">
         <div class="app-header">
             <h1>Lets B real!</h1>
-            <p>Capture your moment to be part of the experience</p>
+            <p>das Bild wird im Laufe des Gottesdienstes gezeigt</p>
         </div>
         
         <div class="camera-container">
@@ -345,10 +406,24 @@
         const loading = document.getElementById('loading');
         const confirmation = document.getElementById('confirmation');
         const closeConfirmation = document.getElementById('closeConfirmation');
-        
+        const acceptBtn = document.getElementById('acceptBtn');
+        const splashscreen = document.getElementById('splashscreen');
+        const content = document.getElementById('content');
+
         let photoData = null;
         let stream = null;
-        
+
+// Füge einen EventListener für den Button hinzu
+acceptBtn.addEventListener('click', function() {
+    // Verstecke den Splashscreen und zeige den Inhalt
+    splashscreen.style.display = 'none';
+    content.style.display = 'block';
+}
+)
+
+       
+       
+        // Access camera
         async function initCamera() {
             try {
                 if (stream) {
