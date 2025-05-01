@@ -164,23 +164,26 @@
     </style>
 </head>
 <body>
-    <div class="photo-cloud" id="photoCloud"></div>    
+    <div class="photo-cloud" id="photoCloud"></div>
+    <div class="placement-error" id="placementError">Reducing image size to fit more photos...</div>
+    
     <script>
         const photoCloud = document.getElementById('photoCloud');
         const placementError = document.getElementById('placementError');
 
         // Config
-        const MAX_PHOTOS = 800;
-        const INITIAL_SIZE = 240;
-        const MIN_SIZE = 100;
-        const GAP_SIZE = 10;
-        const LOAD_DELAY = 300;
-        const POLL_INTERVAL = 1500;
-        const MAX_PLACEMENT_ATTEMPTS = 30;
+        const MAX_PHOTOS = 500;
+        const INITIAL_SIZE = 180;
+        const MIN_SIZE = 120;
+        const SIZE_STEP = 20;
+        const GAP_SIZE = 20;
+        const LOAD_DELAY = 100;
+        const POLL_INTERVAL = 2000;
+        const MAX_PLACEMENT_ATTEMPTS = 100;
         
         let currentPhotos = [];
         let lastPhotoCount = 0;
-        let currentSize = INITIAL_SIZE;
+        let currentBaseSize = INITIAL_SIZE;
         let placementFailures = 0;
         let imageCache = {};
 
@@ -210,24 +213,24 @@
 
         function loadPhotosSequentially() {
             photoCloud.innerHTML = '';
-            currentSize = INITIAL_SIZE;
             placementFailures = 0;
             
             currentPhotos.forEach((photo, index) => {
                 setTimeout(() => {
-                    const size = calculateDynamicSize();
                     if (imageCache[photo.image_url]) {
                         const cachedElement = imageCache[photo.image_url].cloneNode(true);
-                        cachedElement.style.width = `${size}px`;
-                        cachedElement.style.height = `${size}px`;
-                        if (!positionPhotoRandomly(cachedElement, size)) {
+                        cachedElement.style.width = `${currentBaseSize}px`;
+                        cachedElement.style.height = `${currentBaseSize}px`;
+                        if (!positionPhoto(cachedElement, currentBaseSize)) {
                             handlePlacementFailure();
+                            return;
                         }
                         photoCloud.appendChild(cachedElement);
                     } else {
-                        const photoElement = createPhotoElement(photo, size);
-                        if (!positionPhotoRandomly(photoElement, size)) {
+                        const photoElement = createPhotoElement(photo, currentBaseSize);
+                        if (!positionPhoto(photoElement, currentBaseSize)) {
                             handlePlacementFailure();
+                            return;
                         }
                         photoCloud.appendChild(photoElement);
                         // Cache the element (without position data)
@@ -241,14 +244,10 @@
             });
         }
 
-        function calculateDynamicSize() {
-            return Math.floor(Math.random() * (INITIAL_SIZE - MIN_SIZE + 1)) + MIN_SIZE;
-        }
-
         function handlePlacementFailure() {
             placementFailures++;
-            if (placementFailures > 3 && currentSize > MIN_SIZE) {
-                currentSize = Math.max(MIN_SIZE, currentSize - 20);
+            if (placementFailures > 3 && currentBaseSize > MIN_SIZE) {
+                currentBaseSize = Math.max(MIN_SIZE, currentBaseSize - SIZE_STEP);
                 placementError.style.display = 'block';
                 setTimeout(() => {
                     placementError.style.display = 'none';
@@ -277,7 +276,7 @@
             return photoElement;
         }
 
-        function positionPhotoRandomly(element, size) {
+        function positionPhoto(element, size) {
             let placed = false;
             let attempts = 0;
 
@@ -340,11 +339,8 @@
                     const newPhotos = newData.slice(lastPhotoCount);
                     
                     if (newPhotos.length > 0) {
-                        // Add new photos to currentPhotos
                         currentPhotos = newData;
                         lastPhotoCount = newData.length;
-                        
-                        // Load only the new photos with random placement
                         loadNewPhotosSequentially(newPhotos);
                     }
                 }
@@ -354,15 +350,14 @@
         }
 
         function loadNewPhotosSequentially(newPhotos) {
-            currentSize = INITIAL_SIZE;
             placementFailures = 0;
             
             newPhotos.forEach((photo, index) => {
                 setTimeout(() => {
-                    const size = calculateDynamicSize();
-                    const photoElement = createPhotoElement(photo, size);
-                    if (!positionPhotoRandomly(photoElement, size)) {
+                    const photoElement = createPhotoElement(photo, currentBaseSize);
+                    if (!positionPhoto(photoElement, currentBaseSize)) {
                         handlePlacementFailure();
+                        return;
                     }
                     photoCloud.appendChild(photoElement);
                     // Cache the element
@@ -382,29 +377,29 @@
         // Reposition on resize
         window.addEventListener('resize', () => {
             if (currentPhotos.length > 0) {
-                renderAllPhotosRandomly();
+                renderAllPhotos();
             }
         });
 
-        function renderAllPhotosRandomly() {
+        function renderAllPhotos() {
             photoCloud.innerHTML = '';
-            currentSize = INITIAL_SIZE;
             placementFailures = 0;
             
             currentPhotos.forEach((photo, index) => {
-                const size = calculateDynamicSize();
                 if (imageCache[photo.image_url]) {
                     const cachedElement = imageCache[photo.image_url].cloneNode(true);
-                    cachedElement.style.width = `${size}px`;
-                    cachedElement.style.height = `${size}px`;
-                    if (!positionPhotoRandomly(cachedElement, size)) {
+                    cachedElement.style.width = `${currentBaseSize}px`;
+                    cachedElement.style.height = `${currentBaseSize}px`;
+                    if (!positionPhoto(cachedElement, currentBaseSize)) {
                         handlePlacementFailure();
+                        return;
                     }
                     photoCloud.appendChild(cachedElement);
                 } else {
-                    const photoElement = createPhotoElement(photo, size);
-                    if (!positionPhotoRandomly(photoElement, size)) {
+                    const photoElement = createPhotoElement(photo, currentBaseSize);
+                    if (!positionPhoto(photoElement, currentBaseSize)) {
                         handlePlacementFailure();
+                        return;
                     }
                     photoCloud.appendChild(photoElement);
                     // Cache the element
