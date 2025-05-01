@@ -170,224 +170,252 @@
     <script>
         const photoCloud = document.getElementById('photoCloud');
         const placementError = document.getElementById('placementError');
-    
+
         // Config
-        const MAX_PHOTOS = 500;
-        const INITIAL_SIZE = 180;
-        const MIN_SIZE = 100; // Smaller minimum size for retries
-        const GAP_SIZE = 20;
-        const LOAD_DELAY = 600; // ms between photos
-        const POLL_INTERVAL = 2000; // check every 2 seconds
-        const MAX_PLACEMENT_ATTEMPTS = 50; // Attempts per size level
+        const MAX_PHOTOS = 800;
+        const INITIAL_SIZE = 240;
+        const MIN_SIZE = 100;
+        const GAP_SIZE = 10;
+        const LOAD_DELAY = 300;
+        const POLL_INTERVAL = 1500;
+        const MAX_PLACEMENT_ATTEMPTS = 30;
         
         let currentPhotos = [];
         let lastPhotoCount = 0;
         let currentSize = INITIAL_SIZE;
         let placementFailures = 0;
-    
+        let imageCache = {};
+
         // Run when page loads
         window.onload = async function () {
             await loadInitialPhotos();
             startPhotoPolling();
         };
-    
+
         async function loadInitialPhotos() {
             try {
                 const res = await fetch('/api/photos?t=' + Date.now());
                 if (!res.ok) throw new Error('Failed to load photos');
                 const data = await res.json();
-    
+
                 if (!Array.isArray(data)) throw new Error('Unexpected photo format');
-    
+
                 currentPhotos = data;
                 lastPhotoCount = data.length;
-    
+
                 loadPhotosSequentially();
-    
+
             } catch (err) {
                 console.error('Error loading initial photos:', err);
             }
         }
-    
+
         function loadPhotosSequentially() {
-            photoCloud.innerHTML = '';
-            currentSize = INITIAL_SIZE; // Reset size for new attempts
-            placementFailures = 0;
-            
-            currentPhotos.forEach((photo, index) => {
-                setTimeout(() => {
-                    const photoElement = createPhotoElement(photo, currentSize);
-                    if (!positionPhoto(photoElement, currentSize)) {
-                        placementFailures++;
-                        if (placementFailures > 3 && currentSize > MIN_SIZE) {
-                            // Reduce size after multiple failures
-                            currentSize = Math.max(MIN_SIZE, currentSize - 20);
-                            placementError.style.display = 'block';
-                            setTimeout(() => {
-                                placementError.style.display = 'none';
-                            }, 3000);
-                            // Retry with smaller size
-                            loadPhotosSequentially();
-                            return;
-                        }
-                    }
-                    photoCloud.appendChild(photoElement);
-                }, index * LOAD_DELAY);
-            });
-        }
-    
-        function createPhotoElement(photo, size) {
-            const photoElement = document.createElement('div');
-            photoElement.className = 'photo';
-            photoElement.style.width = `${size}px`;
-            photoElement.style.height = `${size}px`;
-    
-            const img = new Image();
-            img.src = photo.image_url + '?t=' + Date.now(); // cache bust
-            img.alt = 'User photo';
-            img.loading = 'lazy';
-    
-            img.onerror = () => {
-                console.error('Failed to load image:', photo.image_url);
-                photoElement.remove();
-            };
-    
-            photoElement.appendChild(img);
-            return photoElement;
-        }
-    
-        function positionPhoto(element, size) {
-            const gridSize = Math.floor(size + GAP_SIZE);
-            const cols = Math.floor(photoCloud.clientWidth / gridSize);
-            const rows = Math.floor(photoCloud.clientHeight / gridSize);
-            
-            // Try random positions first
-            for (let attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt++) {
-                const x = Math.random() * (photoCloud.clientWidth - size);
-                const y = Math.random() * (photoCloud.clientHeight - size);
-                
-                if (!isOverlapping(x, y, size)) {
-                    placeElement(element, x, y, size);
-                    return true;
-                }
-            }
-            
-            // If random placement fails, try grid positions
-            const positions = [];
-            for (let row = 0; row < rows; row++) {
-                for (let col = 0; col < cols; col++) {
-                    positions.push({
-                        x: col * gridSize,
-                        y: row * gridSize
-                    });
-                }
-            }
-            
-            // Shuffle grid positions for more organic placement
-            shuffleArray(positions);
-            
-            for (const pos of positions) {
-                const x = pos.x;
-                const y = pos.y;
-                
-                if (!isOverlapping(x, y, size)) {
-                    placeElement(element, x, y, size);
-                    return true;
-                }
-            }
-            
-            return false;
-        }
-        
-        function placeElement(element, x, y, size) {
-            element.style.left = `${x}px`;
-            element.style.top = `${y}px`;
-            element.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
-        }
-        
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-    
-        function isOverlapping(x, y, size) {
-            const padding = GAP_SIZE;
-            const elements = document.querySelectorAll('.photo');
-            
-            // Create rectangle for new photo
-            const newRect = {
-                left: x - padding,
-                top: y - padding,
-                right: x + size + padding,
-                bottom: y + size + padding
-            };
-    
-            for (const el of elements) {
-                const rect = el.getBoundingClientRect();
-                
-                // Check for overlap
-                if (
-                    newRect.left < rect.right &&
-                    newRect.right > rect.left &&
-                    newRect.top < rect.bottom &&
-                    newRect.bottom > rect.top
-                ) {
-                    return true;
-                }
-            }
-    
-            return false;
-        }
-    
-        function startPhotoPolling() {
-            setInterval(async () => {
-                try {
-                    const res = await fetch('/api/photos/count?t=' + Date.now());
-                    if (!res.ok) return;
-    
-                    const data = await res.json();
-                    const newCount = data.count;
-    
-                    if (newCount > lastPhotoCount) {
-                        console.log(`New photo(s) found. Reloading...`);
-                        location.reload();
-                    }
-                } catch (err) {
-                    console.error('Error checking photo count:', err);
-                }
-            }, POLL_INTERVAL);
-        }
-    
-        // Reposition on resize
-        window.addEventListener('resize', () => {
-            if (currentPhotos.length > 0) {
-                renderAllPhotos();
-            }
-        });
-    
-        function renderAllPhotos() {
             photoCloud.innerHTML = '';
             currentSize = INITIAL_SIZE;
             placementFailures = 0;
             
             currentPhotos.forEach((photo, index) => {
-                const photoElement = createPhotoElement(photo, currentSize);
-                if (!positionPhoto(photoElement, currentSize)) {
-                    placementFailures++;
-                    if (placementFailures > 3 && currentSize > MIN_SIZE) {
-                        currentSize = Math.max(MIN_SIZE, currentSize - 20);
-                        placementError.style.display = 'block';
-                        setTimeout(() => {
-                            placementError.style.display = 'none';
-                        }, 3000);
-                        renderAllPhotos();
-                        return;
+                setTimeout(() => {
+                    const size = calculateDynamicSize();
+                    if (imageCache[photo.image_url]) {
+                        const cachedElement = imageCache[photo.image_url].cloneNode(true);
+                        cachedElement.style.width = `${size}px`;
+                        cachedElement.style.height = `${size}px`;
+                        if (!positionPhotoRandomly(cachedElement, size)) {
+                            handlePlacementFailure();
+                        }
+                        photoCloud.appendChild(cachedElement);
+                    } else {
+                        const photoElement = createPhotoElement(photo, size);
+                        if (!positionPhotoRandomly(photoElement, size)) {
+                            handlePlacementFailure();
+                        }
+                        photoCloud.appendChild(photoElement);
+                        // Cache the element (without position data)
+                        const cacheElement = photoElement.cloneNode(true);
+                        cacheElement.style.left = '';
+                        cacheElement.style.top = '';
+                        cacheElement.style.transform = '';
+                        imageCache[photo.image_url] = cacheElement;
+                    }
+                }, index * LOAD_DELAY);
+            });
+        }
+
+        function calculateDynamicSize() {
+            return Math.floor(Math.random() * (INITIAL_SIZE - MIN_SIZE + 1)) + MIN_SIZE;
+        }
+
+        function handlePlacementFailure() {
+            placementFailures++;
+            if (placementFailures > 3 && currentSize > MIN_SIZE) {
+                currentSize = Math.max(MIN_SIZE, currentSize - 20);
+                placementError.style.display = 'block';
+                setTimeout(() => {
+                    placementError.style.display = 'none';
+                }, 3000);
+                loadPhotosSequentially();
+            }
+        }
+
+        function createPhotoElement(photo, size) {
+            const photoElement = document.createElement('div');
+            photoElement.className = 'photo';
+            photoElement.style.width = `${size}px`;
+            photoElement.style.height = `${size}px`;
+
+            const img = new Image();
+            img.src = photo.image_url + '?t=' + Date.now();
+            img.alt = 'User photo';
+            img.loading = 'lazy';
+
+            img.onerror = () => {
+                console.error('Failed to load image:', photo.image_url);
+                photoElement.remove();
+            };
+
+            photoElement.appendChild(img);
+            return photoElement;
+        }
+
+        function positionPhotoRandomly(element, size) {
+            let placed = false;
+            let attempts = 0;
+
+            while (!placed && attempts < MAX_PLACEMENT_ATTEMPTS) {
+                const x = Math.random() * (photoCloud.clientWidth - size);
+                const y = Math.random() * (photoCloud.clientHeight - size);
+
+                if (!isOverlapping(x, y, size)) {
+                    element.style.left = `${x}px`;
+                    element.style.top = `${y}px`;
+                    element.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
+                    placed = true;
+                }
+                attempts++;
+            }
+
+            return placed;
+        }
+
+        function isOverlapping(x, y, size) {
+            const padding = GAP_SIZE;
+            const elements = document.querySelectorAll('.photo');
+
+            for (const el of elements) {
+                const rect = el.getBoundingClientRect();
+                const photoRect = {
+                    left: x - padding,
+                    top: y - padding,
+                    right: x + size + padding,
+                    bottom: y + size + padding
+                };
+
+                if (
+                    photoRect.left < rect.right &&
+                    photoRect.right > rect.left &&
+                    photoRect.top < rect.bottom &&
+                    photoRect.bottom > rect.top
+                ) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        async function checkForNewPhotos() {
+            try {
+                const res = await fetch('/api/photos/count?t=' + Date.now());
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const newCount = data.count;
+
+                if (newCount > lastPhotoCount) {
+                    console.log(`New photos found (${newCount - lastPhotoCount}). Fetching updates...`);
+                    const newRes = await fetch('/api/photos?t=' + Date.now());
+                    if (!newRes.ok) return;
+                    
+                    const newData = await newRes.json();
+                    const newPhotos = newData.slice(lastPhotoCount);
+                    
+                    if (newPhotos.length > 0) {
+                        // Add new photos to currentPhotos
+                        currentPhotos = newData;
+                        lastPhotoCount = newData.length;
+                        
+                        // Load only the new photos with random placement
+                        loadNewPhotosSequentially(newPhotos);
                     }
                 }
-                photoCloud.appendChild(photoElement);
+            } catch (err) {
+                console.error('Error checking photo count:', err);
+            }
+        }
+
+        function loadNewPhotosSequentially(newPhotos) {
+            currentSize = INITIAL_SIZE;
+            placementFailures = 0;
+            
+            newPhotos.forEach((photo, index) => {
+                setTimeout(() => {
+                    const size = calculateDynamicSize();
+                    const photoElement = createPhotoElement(photo, size);
+                    if (!positionPhotoRandomly(photoElement, size)) {
+                        handlePlacementFailure();
+                    }
+                    photoCloud.appendChild(photoElement);
+                    // Cache the element
+                    const cacheElement = photoElement.cloneNode(true);
+                    cacheElement.style.left = '';
+                    cacheElement.style.top = '';
+                    cacheElement.style.transform = '';
+                    imageCache[photo.image_url] = cacheElement;
+                }, index * LOAD_DELAY);
+            });
+        }
+
+        function startPhotoPolling() {
+            setInterval(checkForNewPhotos, POLL_INTERVAL);
+        }
+
+        // Reposition on resize
+        window.addEventListener('resize', () => {
+            if (currentPhotos.length > 0) {
+                renderAllPhotosRandomly();
+            }
+        });
+
+        function renderAllPhotosRandomly() {
+            photoCloud.innerHTML = '';
+            currentSize = INITIAL_SIZE;
+            placementFailures = 0;
+            
+            currentPhotos.forEach((photo, index) => {
+                const size = calculateDynamicSize();
+                if (imageCache[photo.image_url]) {
+                    const cachedElement = imageCache[photo.image_url].cloneNode(true);
+                    cachedElement.style.width = `${size}px`;
+                    cachedElement.style.height = `${size}px`;
+                    if (!positionPhotoRandomly(cachedElement, size)) {
+                        handlePlacementFailure();
+                    }
+                    photoCloud.appendChild(cachedElement);
+                } else {
+                    const photoElement = createPhotoElement(photo, size);
+                    if (!positionPhotoRandomly(photoElement, size)) {
+                        handlePlacementFailure();
+                    }
+                    photoCloud.appendChild(photoElement);
+                    // Cache the element
+                    const cacheElement = photoElement.cloneNode(true);
+                    cacheElement.style.left = '';
+                    cacheElement.style.top = '';
+                    cacheElement.style.transform = '';
+                    imageCache[photo.image_url] = cacheElement;
+                }
             });
         }
     </script>
