@@ -103,38 +103,12 @@
             transform: scale(1.1);
         }
         
-        .loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255,255,255,0.2);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .new-photo-notification {
+        .placement-error {
             position: fixed;
             top: 20px;
-            right: 20px;
-            background: var(--primary);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--error);
             color: white;
             padding: 10px 20px;
             border-radius: 5px;
@@ -152,27 +126,24 @@
     </style>
 </head>
 <body>
-    <div class="photo-cloud" id="photoCloud"></div>
-    <div class="new-photo-notification" id="newPhotoNotification">New photos added! Reloading...</div>
-    
+    <div class="photo-cloud" id="photoCloud"></div>    
     <script>
-        const photoCloud = document.getElementById('photoCloud');
-        const newPhotoNotification = document.getElementById('newPhotoNotification');
-    
+        const photoCloud = document.getElementById('photoCloud');    
         // Config
         const MAX_PHOTOS = 500;
-        const INITIAL_SIZE = 180;
+        const INITIAL_SIZE = 120;
         const MIN_SIZE = 120;
         const SIZE_STEP = 20;
         const GAP_SIZE = 20;
         const LOAD_DELAY = 100;
-        const POLL_INTERVAL = 2000; // Check for new photos every 2 seconds
+        const POLL_INTERVAL = 2000;
         const MAX_PLACEMENT_ATTEMPTS = 100;
     
         let currentPhotos = [];
         let lastPhotoCount = 0;
         let currentBaseSize = INITIAL_SIZE;
         let placementFailures = 0;
+        let allowOverlap = false;
     
         window.onload = async function () {
             await loadInitialPhotos();
@@ -215,8 +186,19 @@
     
         function handlePlacementFailure() {
             placementFailures++;
+            
+            // If we've failed too many times and can still shrink the images
             if (placementFailures > 3 && currentBaseSize > MIN_SIZE) {
                 currentBaseSize = Math.max(MIN_SIZE, currentBaseSize - SIZE_STEP);
+                loadPhotosSequentially();
+            } 
+            // If we've reached minimum size, enable overlapping
+            else if (currentBaseSize <= MIN_SIZE && !allowOverlap) {
+                allowOverlap = true;
+                placementError.style.display = 'block';
+                setTimeout(() => {
+                    placementError.style.display = 'none';
+                }, 3000);
                 loadPhotosSequentially();
             }
         }
@@ -249,7 +231,7 @@
                 const x = Math.random() * (photoCloud.clientWidth - size);
                 const y = Math.random() * (photoCloud.clientHeight - size);
     
-                if (!isOverlapping(x, y, size)) {
+                if (allowOverlap || !isOverlapping(x, y, size)) {
                     element.style.left = `${x}px`;
                     element.style.top = `${y}px`;
                     element.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
@@ -297,21 +279,11 @@
 
                 if (newCount > lastPhotoCount) {
                     console.log(`New photos detected (${newCount} vs ${lastPhotoCount}). Reloading...`);
-                    showNewPhotoNotification();
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1500); // Small delay to show notification before reload
+                    location.reload();
                 }
             } catch (err) {
                 console.error('Error checking photo count:', err);
             }
-        }
-    
-        function showNewPhotoNotification() {
-            newPhotoNotification.style.display = 'block';
-            setTimeout(() => {
-                newPhotoNotification.style.display = 'none';
-            }, 3000);
         }
     
         function startPhotoPolling() {
